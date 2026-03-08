@@ -44,19 +44,11 @@ Built by **Sadik Hossain** — a single-file HTML tool designed to monitor artic
 
 ## 🚀 Quick Start
 
-1. **Download** `newsbreak-monitor.html` (or clone this repo)
-2. **Open** the file in any modern browser — or host it on GitHub Pages
-3. **Select** which publishers to scan (WGTC, AOTF, Curveball)
-4. **Set** how many pages to fetch (default: 2 = ~20 articles per publisher)
-5. **Click** "⚡ Fetch All Articles"
-6. Done! Browse, filter, sort, and export your data.
-
-## 🌐 Hosting on GitHub Pages
-
-1. Create a new GitHub repository (e.g., `newsbreak-monitor`)
-2. Upload `newsbreak-monitor.html` and rename it to `index.html`
-3. Go to **Settings → Pages → Source** → select `main` branch
-4. Your tool will be live at `https://yourusername.github.io/newsbreak-monitor/`
+1. **Open** the file in any modern browser 
+2. **Select** which publishers to scan (WGTC, AOTF, Curveball)
+3. **Set** how many pages to fetch (default: 2 = ~20 articles per publisher)
+4. **Click** "⚡ Fetch All Articles"
+5. Done! Browse, filter, sort, and export your data.
 
 ## ⚙️ Configuration
 
