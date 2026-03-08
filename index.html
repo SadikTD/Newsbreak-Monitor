@@ -70,7 +70,38 @@ tr:last-child td{border:none}tr:hover td{background:var(--accL)}
 .fg{margin-bottom:16px}.fg label{display:block;font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
 .fg input,.fg textarea,.fg select{width:100%;padding:8px 12px;border:1px solid var(--brd);border-radius:6px;font-family:var(--f);font-size:13px;background:var(--bg);color:var(--tx)}
 .fg textarea{font-family:var(--fm);font-size:12px;min-height:80px;resize:vertical}.fg input:focus,.fg textarea:focus{outline:none;border-color:var(--acc)}.fg .hint{font-size:10px;color:var(--tx3);margin-top:3px}
-@media(max-width:768px){.main{padding:14px}.fbar{flex-direction:column}.stats{grid-template-columns:repeat(2,1fr)}.tbl-c{overflow-x:auto}table{min-width:850px}.pub-row{flex-direction:column}.timer-grid{grid-template-columns:repeat(2,1fr)}}
+.tabs{display:flex;gap:0;background:var(--bg2);border:1px solid var(--brd);border-radius:10px;overflow:hidden;margin-bottom:18px}
+.tab{flex:1;padding:12px 20px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;border-right:1px solid var(--brd);color:var(--tx3)}
+.tab:last-child{border-right:none}
+.tab:hover{background:var(--bg3);color:var(--tx)}
+.tab.active{background:var(--accL);color:var(--acc);border-bottom:2px solid var(--acc)}
+.tab .tab-icon{margin-right:6px}
+.analytics{display:none}
+.analytics.show{display:block}
+.a-section{background:var(--bg2);border:1px solid var(--brd);border-radius:12px;padding:18px 22px;margin-bottom:18px}
+.a-section h3{font-size:14px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.a-table{width:100%;border-collapse:collapse}
+.a-table thead{background:var(--bg3)}
+.a-table th{text-align:left;padding:9px 14px;font-size:10px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;cursor:pointer}
+.a-table th:hover{color:var(--tx)}
+.a-table td{padding:10px 14px;font-size:12px;border-bottom:1px solid var(--brd2)}
+.a-table tr:last-child td{border:none}
+.a-table tr:hover td{background:var(--accL)}
+.a-rank{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;font-family:var(--fm)}
+.a-rank.gold{background:#fef3c7;color:#92400e}.a-rank.silver{background:#e5e7eb;color:#374151}.a-rank.bronze{background:#fed7aa;color:#9a3412}
+.a-rank.normal{background:var(--bg3);color:var(--tx3)}
+.a-bar{height:8px;border-radius:4px;background:var(--bg3);overflow:hidden;min-width:60px}
+.a-bar-fill{height:100%;border-radius:4px;transition:width .3s}
+.a-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:18px}
+.a-card{background:var(--bg);border:1px solid var(--brd);border-radius:10px;padding:14px 16px}
+.a-card h4{font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.a-card .a-big{font-size:28px;font-weight:700;letter-spacing:-1px}
+.a-card .a-sub{font-size:11px;color:var(--tx2);margin-top:2px}
+.top-article{padding:8px 0;border-bottom:1px solid var(--brd2);display:flex;gap:10px;align-items:flex-start}
+.top-article:last-child{border:none}
+.top-num{font-family:var(--fm);font-size:14px;font-weight:700;color:var(--acc);min-width:24px}
+.top-info{flex:1}.top-title{font-size:12px;font-weight:500;color:var(--tx)}.top-meta{font-size:10px;color:var(--tx3);margin-top:2px}
+@media(max-width:768px){.main{padding:14px}.fbar{flex-direction:column}.stats{grid-template-columns:repeat(2,1fr)}.tbl-c{overflow-x:auto}table{min-width:850px}.pub-row{flex-direction:column}.timer-grid{grid-template-columns:repeat(2,1fr)}.a-grid{grid-template-columns:1fr}#topArticlesGrid{grid-template-columns:1fr!important}}
 ::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--brd);border-radius:3px}
 </style>
 </head>
@@ -114,6 +145,14 @@ tr:last-child td{border:none}tr:hover td{background:var(--accL)}
     <div class="st"><div class="st-l">Total Comments</div><div class="st-v" id="sComments">0</div><div class="st-s">combined</div></div>
     <div class="st"><div class="st-l">Total Shares</div><div class="st-v" id="sShares">0</div><div class="st-s">page 1 data only</div></div>
   </div>
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('articles')" id="tabArticles"><span class="tab-icon">📰</span>Articles</div>
+    <div class="tab" onclick="switchTab('analytics')" id="tabAnalytics"><span class="tab-icon">📊</span>Analytics</div>
+  </div>
+
+  <!-- ARTICLES TAB -->
+  <div id="articlesView">
   <div class="fbar">
     <input class="search" type="text" id="searchInput" placeholder="Search titles, authors..." oninput="applyFilters()">
     <select id="authorFilter" onchange="applyFilters()"><option value="">All Authors</option></select>
@@ -132,6 +171,18 @@ tr:last-child td{border:none}tr:hover td{background:var(--accL)}
       <th onclick="doSort('date')" id="th-date">Date</th><th onclick="doSort('publisher')" id="th-publisher">Source</th>
     </tr></thead><tbody id="tbody"></tbody></table>
     <div id="emptyState" class="empty"><h3>No articles loaded yet</h3><p>Click "⚡ Fetch All Articles" to start.</p></div>
+  </div>
+  </div>
+
+  <!-- ANALYTICS TAB -->
+  <div id="analyticsView" class="analytics">
+    <div class="a-grid" id="analyticsOverview"></div>
+    <div class="a-section"><h3>🏆 Author Leaderboard</h3><div style="overflow-x:auto"><table class="a-table" id="authorTable"><thead><tr><th>#</th><th>Author</th><th>Articles</th><th>Total Comments</th><th>Avg Comments</th><th>Total Reactions</th><th>Avg Reactions</th><th>Publishers</th><th>Engagement Bar</th></tr></thead><tbody id="authorTbody"></tbody></table></div></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px" id="topArticlesGrid">
+      <div class="a-section"><h3>🔥 Top Articles by Comments</h3><div id="topComments"></div></div>
+      <div class="a-section"><h3>💥 Top Articles by Reactions</h3><div id="topReactions"></div></div>
+    </div>
+    <div class="a-section"><h3>📅 Publisher Breakdown</h3><div style="overflow-x:auto"><table class="a-table" id="pubTable"><thead><tr><th>Publisher</th><th>Articles</th><th>Total Comments</th><th>Avg Comments</th><th>Total Reactions</th><th>Avg Reactions</th><th>Authors</th></tr></thead><tbody id="pubTbody"></tbody></table></div></div>
   </div>
 </div>
 <footer style="text-align:center;padding:24px 20px 32px;font-size:12px;color:var(--tx3);border-top:1px solid var(--brd);margin-top:24px">
@@ -378,6 +429,84 @@ function setProgress(pct){document.getElementById('progressFill').style.width=Ma
 function setStatus(txt){document.getElementById('statusText').textContent=txt}
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
 function toggleTheme(){var dk=document.documentElement.getAttribute('data-theme')==='dark';document.documentElement.setAttribute('data-theme',dk?'':'dark');cfg.theme=dk?'light':'dark';try{localStorage.setItem('nb_cfg',JSON.stringify(cfg))}catch(e){}}
+// ===== TABS =====
+function switchTab(tab){
+  document.getElementById('tabArticles').classList.toggle('active',tab==='articles');
+  document.getElementById('tabAnalytics').classList.toggle('active',tab==='analytics');
+  document.getElementById('articlesView').style.display=tab==='articles'?'':'none';
+  var av=document.getElementById('analyticsView');
+  if(tab==='analytics'){av.classList.add('show');renderAnalytics()}else{av.classList.remove('show')}
+}
+
+// ===== ANALYTICS =====
+function renderAnalytics(){
+  var data=allArticles.filter(function(a){return a._enriched||a.authors[0]!=='⏳ Loading...'});
+  if(!data.length){document.getElementById('analyticsOverview').innerHTML='<div class="a-card" style="grid-column:1/-1;text-align:center;padding:40px;color:var(--tx3)">No data yet. Fetch articles first.</div>';document.getElementById('authorTbody').innerHTML='';document.getElementById('topComments').innerHTML='';document.getElementById('topReactions').innerHTML='';document.getElementById('pubTbody').innerHTML='';return}
+
+  // Build author stats
+  var authors={};
+  data.forEach(function(a){
+    a.authors.forEach(function(name){
+      if(!name||name==='Unknown'||name.indexOf('⏳')>=0)return;
+      if(!authors[name])authors[name]={name:name,articles:0,comments:0,reactions:0,publishers:{}};
+      authors[name].articles++;
+      authors[name].comments+=a.comments||0;
+      authors[name].reactions+=a.totalReactions||0;
+      authors[name].publishers[a.publisher]=true;
+    });
+  });
+  var authorList=Object.values(authors).sort(function(a,b){return(b.comments+b.reactions)-(a.comments+a.reactions)});
+
+  // Overview cards
+  var totalComments=data.reduce(function(s,a){return s+a.comments},0);
+  var totalReactions=data.reduce(function(s,a){return s+(a.totalReactions||0)},0);
+  var avgComments=data.length?Math.round(totalComments/data.length):0;
+  var avgReactions=data.length?Math.round(totalReactions/data.length):0;
+  var topAuthor=authorList[0]?authorList[0].name:'--';
+  var bestArticle=data.slice().sort(function(a,b){return b.comments-a.comments})[0];
+  
+  document.getElementById('analyticsOverview').innerHTML=
+    '<div class="a-card"><h4>📝 Total Articles</h4><div class="a-big">'+data.length+'</div><div class="a-sub">across '+Object.keys(authors).length+' authors</div></div>'+
+    '<div class="a-card"><h4>💬 Total Comments</h4><div class="a-big" style="color:var(--warn)">'+fN(totalComments)+'</div><div class="a-sub">avg '+avgComments+' per article</div></div>'+
+    '<div class="a-card"><h4>🎭 Total Reactions</h4><div class="a-big" style="color:var(--acc)">'+fN(totalReactions)+'</div><div class="a-sub">avg '+avgReactions+' per article</div></div>'+
+    '<div class="a-card"><h4>👑 Top Author</h4><div class="a-big" style="font-size:20px">'+esc(topAuthor)+'</div><div class="a-sub">by total engagement</div></div>';
+
+  // Author leaderboard
+  var maxEng=authorList[0]?(authorList[0].comments+authorList[0].reactions):1;
+  document.getElementById('authorTbody').innerHTML=authorList.map(function(a,i){
+    var eng=a.comments+a.reactions;
+    var pct=Math.round((eng/maxEng)*100);
+    var rankCls=i===0?'gold':i===1?'silver':i===2?'bronze':'normal';
+    var pubNames=Object.keys(a.publishers).map(function(k){return PUBS[k]?PUBS[k].s:k}).join(', ');
+    var barColor=i===0?'var(--acc)':i===1?'#7c3aed':i===2?'#2563eb':'var(--tx3)';
+    return'<tr><td><span class="a-rank '+rankCls+'">'+(i+1)+'</span></td><td><strong>'+esc(a.name)+'</strong></td><td style="font-family:var(--fm)">'+a.articles+'</td><td style="font-family:var(--fm);color:'+metricColor(a.comments)+'">'+fN(a.comments)+'</td><td style="font-family:var(--fm)">'+Math.round(a.comments/a.articles)+'</td><td style="font-family:var(--fm);color:'+metricColor(a.reactions)+'">'+fN(a.reactions)+'</td><td style="font-family:var(--fm)">'+Math.round(a.reactions/a.articles)+'</td><td style="font-size:11px">'+pubNames+'</td><td><div class="a-bar"><div class="a-bar-fill" style="width:'+pct+'%;background:'+barColor+'"></div></div></td></tr>';
+  }).join('');
+
+  // Top articles by comments
+  var topByComments=data.slice().sort(function(a,b){return b.comments-a.comments}).slice(0,10);
+  document.getElementById('topComments').innerHTML=topByComments.map(function(a,i){
+    return'<div class="top-article"><div class="top-num">#'+(i+1)+'</div><div class="top-info"><div class="top-title">'+esc(a.title)+'</div><div class="top-meta">'+esc(a.author)+' · <strong style="color:'+metricColor(a.comments)+'">'+fN(a.comments)+' comments</strong> · '+(PUBS[a.publisher]?PUBS[a.publisher].s:a.publisher)+'</div></div></div>';
+  }).join('');
+
+  // Top articles by reactions
+  var topByReactions=data.slice().sort(function(a,b){return(b.totalReactions||0)-(a.totalReactions||0)}).slice(0,10);
+  document.getElementById('topReactions').innerHTML=topByReactions.map(function(a,i){
+    return'<div class="top-article"><div class="top-num">#'+(i+1)+'</div><div class="top-info"><div class="top-title">'+esc(a.title)+'</div><div class="top-meta">'+esc(a.author)+' · <strong style="color:'+metricColor(a.totalReactions||0)+'">'+fN(a.totalReactions||0)+' reactions</strong> · '+(PUBS[a.publisher]?PUBS[a.publisher].s:a.publisher)+'</div></div></div>';
+  }).join('');
+
+  // Publisher breakdown
+  var pubs={};
+  data.forEach(function(a){
+    var pk=a.publisher;
+    if(!pubs[pk])pubs[pk]={name:a.publisherName,articles:0,comments:0,reactions:0,authors:{}};
+    pubs[pk].articles++;pubs[pk].comments+=a.comments||0;pubs[pk].reactions+=a.totalReactions||0;
+    a.authors.forEach(function(au){if(au&&au!=='Unknown'&&au.indexOf('⏳')<0)pubs[pk].authors[au]=true});
+  });
+  document.getElementById('pubTbody').innerHTML=Object.values(pubs).sort(function(a,b){return b.articles-a.articles}).map(function(p){
+    return'<tr><td><strong>'+esc(p.name)+'</strong></td><td style="font-family:var(--fm)">'+p.articles+'</td><td style="font-family:var(--fm)">'+fN(p.comments)+'</td><td style="font-family:var(--fm)">'+Math.round(p.comments/p.articles)+'</td><td style="font-family:var(--fm)">'+fN(p.reactions)+'</td><td style="font-family:var(--fm)">'+Math.round(p.reactions/p.articles)+'</td><td style="font-size:11px">'+Object.keys(p.authors).join(', ')+'</td></tr>';
+  }).join('');
+}
+
 document.getElementById('settingsModal').addEventListener('click',function(e){if(e.target===document.getElementById('settingsModal'))closeSettings()});
 </script>
 </body>
