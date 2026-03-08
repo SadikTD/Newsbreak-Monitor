@@ -70,6 +70,16 @@ tr:last-child td{border:none}tr:hover td{background:var(--accL)}
 .fg{margin-bottom:16px}.fg label{display:block;font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
 .fg input,.fg textarea,.fg select{width:100%;padding:8px 12px;border:1px solid var(--brd);border-radius:6px;font-family:var(--f);font-size:13px;background:var(--bg);color:var(--tx)}
 .fg textarea{font-family:var(--fm);font-size:12px;min-height:80px;resize:vertical}.fg input:focus,.fg textarea:focus{outline:none;border-color:var(--acc)}.fg .hint{font-size:10px;color:var(--tx3);margin-top:3px}
+.date-presets{display:flex;gap:4px;flex-wrap:wrap}
+.date-presets .dp{padding:4px 10px;border-radius:12px;font-size:10px;font-weight:600;border:1px solid var(--brd);background:var(--bg);color:var(--tx2);cursor:pointer;transition:.15s}
+.date-presets .dp:hover{border-color:var(--acc);color:var(--acc)}
+.date-presets .dp.active{background:var(--accL);border-color:var(--accB);color:var(--acc)}
+.fetch-mode{display:flex;gap:8px;align-items:center;margin-top:10px;padding:10px 14px;background:var(--bg3);border-radius:8px;flex-wrap:wrap}
+.fetch-mode label{font-size:12px;color:var(--tx2);display:flex;align-items:center;gap:5px}
+.a-date-bar{background:var(--bg2);border:1px solid var(--brd);border-radius:10px;padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.a-date-bar label{font-size:12px;color:var(--tx2);font-weight:500}
+.a-date-bar input{padding:6px 10px;border:1px solid var(--brd);border-radius:6px;font-family:var(--f);font-size:12px;background:var(--bg);color:var(--tx)}
+.a-date-bar input:focus{outline:none;border-color:var(--acc)}
 .tabs{display:flex;gap:0;background:var(--bg2);border:1px solid var(--brd);border-radius:10px;overflow:hidden;margin-bottom:18px}
 .tab{flex:1;padding:12px 20px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;border-right:1px solid var(--brd);color:var(--tx3)}
 .tab:last-child{border-right:none}
@@ -127,6 +137,10 @@ tr:last-child td{border:none}tr:hover td{background:var(--accL)}
       <button class="btn" onclick="clearAll()">🗑 Clear</button>
       <span style="font-size:11px;color:var(--ok);font-weight:500" id="totalLoaded"></span>
     </div>
+    <div class="fetch-mode">
+      <label>📅 Fetch until date: <input type="date" id="fetchUntilDate" style="padding:5px 8px;border:1px solid var(--brd);border-radius:6px;font-size:12px;background:var(--bg);color:var(--tx)"></label>
+      <span style="font-size:10px;color:var(--tx3)">Leave empty to use page count above. When set, ignores page limit and keeps fetching until all articles from this date are collected.</span>
+    </div>
     <div class="progress" id="progressBar"><div class="progress-fill" id="progressFill"></div></div>
     <div class="status-text" id="statusText"></div>
     <div class="timer-box" id="timerBox">
@@ -157,10 +171,22 @@ tr:last-child td{border:none}tr:hover td{background:var(--accL)}
     <input class="search" type="text" id="searchInput" placeholder="Search titles, authors..." oninput="applyFilters()">
     <select id="authorFilter" onchange="applyFilters()"><option value="">All Authors</option></select>
     <select id="publisherFilter" onchange="applyFilters()"><option value="">All Publishers</option><option value="wgtc">WGTC</option><option value="aotf">AOTF</option><option value="curveball">Curveball</option></select>
-    <input type="date" id="dateFrom" onchange="applyFilters()"><input type="date" id="dateTo" onchange="applyFilters()">
     <button class="btn" id="myBtn" onclick="toggleMy()">👤 My Articles</button>
     <button class="btn" onclick="exportCSV()">📥 CSV</button>
     <button class="btn" onclick="clearFilters()">✕</button>
+  </div>
+  <div class="fbar" style="padding:8px 16px">
+    <div class="date-presets" id="artPresets">
+      <span class="dp active" data-p="all" onclick="setDatePreset('all','art')">All Time</span>
+      <span class="dp" data-p="today" onclick="setDatePreset('today','art')">Today</span>
+      <span class="dp" data-p="yesterday" onclick="setDatePreset('yesterday','art')">Yesterday</span>
+      <span class="dp" data-p="week" onclick="setDatePreset('week','art')">This Week</span>
+      <span class="dp" data-p="month" onclick="setDatePreset('month','art')">This Month</span>
+      <span class="dp" data-p="lastmonth" onclick="setDatePreset('lastmonth','art')">Last Month</span>
+      <span class="dp" data-p="custom" onclick="setDatePreset('custom','art')">Custom</span>
+    </div>
+    <input type="date" id="dateFrom" onchange="setDatePreset('custom','art');applyFilters()" style="display:none">
+    <input type="date" id="dateTo" onchange="setDatePreset('custom','art');applyFilters()" style="display:none">
   </div>
   <div class="tbl-c">
     <div class="tbl-h"><div style="display:flex;align-items:center"><h3>Articles</h3><span class="cnt" id="tCnt">0</span></div></div>
@@ -176,6 +202,20 @@ tr:last-child td{border:none}tr:hover td{background:var(--accL)}
 
   <!-- ANALYTICS TAB -->
   <div id="analyticsView" class="analytics">
+    <div class="a-date-bar">
+      <label>📅 Filter analytics by date:</label>
+      <div class="date-presets" id="anaPresets">
+        <span class="dp active" data-p="all" onclick="setDatePreset('all','ana')">All Time</span>
+        <span class="dp" data-p="today" onclick="setDatePreset('today','ana')">Today</span>
+        <span class="dp" data-p="yesterday" onclick="setDatePreset('yesterday','ana')">Yesterday</span>
+        <span class="dp" data-p="week" onclick="setDatePreset('week','ana')">This Week</span>
+        <span class="dp" data-p="month" onclick="setDatePreset('month','ana')">This Month</span>
+        <span class="dp" data-p="lastmonth" onclick="setDatePreset('lastmonth','ana')">Last Month</span>
+        <span class="dp" data-p="custom" onclick="setDatePreset('custom','ana')">Custom</span>
+      </div>
+      <input type="date" id="anaDateFrom" onchange="setDatePreset('custom','ana');renderAnalytics()" style="display:none">
+      <input type="date" id="anaDateTo" onchange="setDatePreset('custom','ana');renderAnalytics()" style="display:none">
+    </div>
     <div class="a-grid" id="analyticsOverview"></div>
     <div class="a-section"><h3>🏆 Author Leaderboard</h3><div style="overflow-x:auto"><table class="a-table" id="authorTable"><thead><tr><th>#</th><th>Author</th><th>Articles</th><th>Total Comments</th><th>Avg Comments</th><th>Total Reactions</th><th>Avg Reactions</th><th>Publishers</th><th>Engagement Bar</th></tr></thead><tbody id="authorTbody"></tbody></table></div></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px" id="topArticlesGrid">
@@ -262,6 +302,10 @@ async function startFetch(){
   document.getElementById('progressBar').style.display='block';
   startFullTimer();
   var maxP=parseInt(document.getElementById('maxPages').value)||2;
+  var fetchUntil=document.getElementById('fetchUntilDate').value;
+  var untilDate=fetchUntil?new Date(fetchUntil):null;
+  var useUntilDate=!!untilDate;
+  if(useUntilDate)maxP=999; // no page limit when using date mode
   var totalAdded=0,enrichQueue=[];
 
   // PHASE 1: Fetch listing pages
@@ -269,16 +313,23 @@ async function startFetch(){
     var pk=sel[pi];
     var baseUrl=cfg.urls[pk]||DEF_URLS[pk];if(!baseUrl)continue;
     var slug=getPubSlug(baseUrl);
-    var page=1,hasMore=true;
-    while(hasMore&&page<=maxP){
-      setStatus('Phase 1: Scanning '+PUBS[pk].s+' page '+page+'...');
+    var page=1,hasMore=true,reachedDate=false;
+    while(hasMore&&page<=maxP&&!reachedDate){
+      setStatus('Phase 1: Scanning '+PUBS[pk].s+' page '+page+(useUntilDate?' (until '+fetchUntil+')':'')+'...');
       document.getElementById('tvDone').textContent='Scanning pages...';
       var pageUrl=baseUrl+(baseUrl.indexOf('?')>=0?'&':'?')+'page='+page;
       var html=await fetchUrl(pageUrl);
       if(!html){toast(PUBS[pk].s+': Failed page '+page,'err');hasMore=false;break}
       var r=extractListing(html,pk,slug);
-      if(r.added>0){totalAdded+=r.added;enrichQueue=enrichQueue.concat(r.toEnrich);updateAuthors();applyFilters();page++;await sleep(200)}
-      else{hasMore=false}
+      if(r.added>0){
+        totalAdded+=r.added;enrichQueue=enrichQueue.concat(r.toEnrich);
+        updateAuthors();updateDateBounds();applyFilters();
+        // Check if oldest article on this page is before our target date
+        if(useUntilDate&&r.oldestDate&&r.oldestDate<untilDate){
+          reachedDate=true;setStatus(PUBS[pk].s+': Reached target date at page '+page);
+        }
+        page++;await sleep(200);
+      } else{hasMore=false}
     }
   }
 
@@ -305,6 +356,7 @@ async function startFetch(){
 
   setProgress(100);setStatus('✅ Done! '+allArticles.length+' articles loaded.');
   document.getElementById('totalLoaded').textContent=allArticles.length+' articles';
+  updateDateBounds();
   if(totalAdded>0)toast('Loaded '+totalAdded+' articles','ok');else toast('No new articles','info');
   btn.disabled=false;btn.textContent='⚡ Fetch All Articles';fetching=false;
   setTimeout(function(){document.getElementById('progressBar').style.display='none'},2000);
@@ -315,7 +367,7 @@ function extractListing(html,pubKey,slug){
   var json=null;
   try{var p=JSON.parse(html);if(p.props&&p.props.pageProps&&p.props.pageProps.feedItems)json=p}catch(e){}
   if(!json){var m=html.match(/<script\s+id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);if(m)try{json=JSON.parse(m[1])}catch(e){}}
-  if(!json||!json.props||!json.props.pageProps||!json.props.pageProps.feedItems||!json.props.pageProps.feedItems.length)return{added:0,toEnrich:[]};
+  if(!json||!json.props||!json.props.pageProps||!json.props.pageProps.feedItems||!json.props.pageProps.feedItems.length)return{added:0,toEnrich:[],oldestDate:null};
   var items=json.props.pageProps.feedItems;
   var existing={};allArticles.forEach(function(a){existing[a.id]=true});
 
@@ -324,7 +376,7 @@ function extractListing(html,pubKey,slug){
   var urlRe=new RegExp('href="(/'+escaped+'/\\d+-[^"]+)"','g');
   var nbUrls=[],um;while((um=urlRe.exec(html))!==null){if(nbUrls.indexOf(um[1])<0)nbUrls.push(um[1])}
 
-  var added=0,toEnrich=[],ui=0;
+  var added=0,toEnrich=[],ui=0,oldestDate=null;
   items.forEach(function(item){
     var id=item.docid;if(!id||existing[id])return;existing[id]=true;
     var emojis={};if(item.emoji_count)item.emoji_count.forEach(function(e){emojis[e.emoji_id.replace('emoji_','')]=e.count});
@@ -351,8 +403,9 @@ function extractListing(html,pubKey,slug){
     };
     if(!hasAuthors&&nbUrl)toEnrich.push(art);
     allArticles.push(art);added++;
+    if(art.date&&(!oldestDate||art.date<oldestDate))oldestDate=art.date;
   });
-  return{added:added,toEnrich:toEnrich};
+  return{added:added,toEnrich:toEnrich,oldestDate:oldestDate};
 }
 
 // ===== ENRICH =====
@@ -388,7 +441,7 @@ function applyFilters(){
   render();updateStats()}
 function doSort(f){if(sortS.f===f)sortS.d=sortS.d==='desc'?'asc':'desc';else{sortS.f=f;sortS.d='desc'}document.querySelectorAll('th').forEach(function(t){t.classList.remove('sorted')});var el=document.getElementById('th-'+f);if(el)el.classList.add('sorted');applyFilters()}
 function toggleMy(){myActive=!myActive;document.getElementById('myBtn').classList.toggle('btn-a',myActive);applyFilters()}
-function clearFilters(){['searchInput','dateFrom','dateTo'].forEach(function(id){document.getElementById(id).value=''});['authorFilter','publisherFilter'].forEach(function(id){document.getElementById(id).value=''});myActive=false;document.getElementById('myBtn').classList.remove('btn-a');applyFilters()}
+function clearFilters(){['searchInput','dateFrom','dateTo'].forEach(function(id){document.getElementById(id).value=''});['authorFilter','publisherFilter'].forEach(function(id){document.getElementById(id).value=''});myActive=false;document.getElementById('myBtn').classList.remove('btn-a');setDatePreset('all','art');applyFilters()}
 
 // ===== RENDER =====
 function render(){
@@ -429,6 +482,61 @@ function setProgress(pct){document.getElementById('progressFill').style.width=Ma
 function setStatus(txt){document.getElementById('statusText').textContent=txt}
 function sleep(ms){return new Promise(function(r){setTimeout(r,ms)})}
 function toggleTheme(){var dk=document.documentElement.getAttribute('data-theme')==='dark';document.documentElement.setAttribute('data-theme',dk?'':'dark');cfg.theme=dk?'light':'dark';try{localStorage.setItem('nb_cfg',JSON.stringify(cfg))}catch(e){}}
+// ===== DATE PRESETS & BOUNDS =====
+var artDatePreset='all',anaDatePreset='all';
+function setDatePreset(preset,target){
+  var isArt=target==='art';
+  if(isArt)artDatePreset=preset;else anaDatePreset=preset;
+  var containerId=isArt?'artPresets':'anaPresets';
+  document.querySelectorAll('#'+containerId+' .dp').forEach(function(el){
+    el.classList.toggle('active',el.getAttribute('data-p')===preset);
+  });
+  
+  var fromEl=document.getElementById(isArt?'dateFrom':'anaDateFrom');
+  var toEl=document.getElementById(isArt?'dateTo':'anaDateTo');
+  var now=new Date();var y=now.getFullYear(),m=now.getMonth(),d=now.getDate();
+  
+  if(preset==='custom'){fromEl.style.display='';toEl.style.display='';return}
+  fromEl.style.display='none';toEl.style.display='none';
+
+  var from='',to='';
+  if(preset==='today'){from=to=fmtISO(now)}
+  else if(preset==='yesterday'){var yd=new Date(y,m,d-1);from=to=fmtISO(yd)}
+  else if(preset==='week'){var ws=new Date(y,m,d-now.getDay());from=fmtISO(ws);to=fmtISO(now)}
+  else if(preset==='month'){from=fmtISO(new Date(y,m,1));to=fmtISO(now)}
+  else if(preset==='lastmonth'){from=fmtISO(new Date(y,m-1,1));to=fmtISO(new Date(y,m,0))}
+  else{from='';to=''}
+  fromEl.value=from;toEl.value=to;
+  if(isArt)applyFilters();else renderAnalytics();
+}
+function fmtISO(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+
+function updateDateBounds(){
+  // Find min and max dates from all articles
+  var minD=null,maxD=null;
+  allArticles.forEach(function(a){
+    if(!a.date)return;
+    if(!minD||a.date<minD)minD=a.date;
+    if(!maxD||a.date>maxD)maxD=a.date;
+  });
+  var minStr=minD?fmtISO(minD):'';
+  var maxStr=maxD?fmtISO(maxD):'';
+  // Apply bounds to all 4 date inputs
+  ['dateFrom','dateTo','anaDateFrom','anaDateTo'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){el.min=minStr;el.max=maxStr}
+  });
+  // Also set the fetch-until-date max to today
+  var fud=document.getElementById('fetchUntilDate');
+  if(fud)fud.max=fmtISO(new Date());
+}
+
+function getAnalyticsDateRange(){
+  var from=document.getElementById('anaDateFrom').value;
+  var to=document.getElementById('anaDateTo').value;
+  return{from:from?new Date(from):null,to:to?new Date(to+'T23:59:59'):null};
+}
+
 // ===== TABS =====
 function switchTab(tab){
   document.getElementById('tabArticles').classList.toggle('active',tab==='articles');
@@ -440,8 +548,17 @@ function switchTab(tab){
 
 // ===== ANALYTICS =====
 function renderAnalytics(){
-  var data=allArticles.filter(function(a){return a._enriched||a.authors[0]!=='⏳ Loading...'});
-  if(!data.length){document.getElementById('analyticsOverview').innerHTML='<div class="a-card" style="grid-column:1/-1;text-align:center;padding:40px;color:var(--tx3)">No data yet. Fetch articles first.</div>';document.getElementById('authorTbody').innerHTML='';document.getElementById('topComments').innerHTML='';document.getElementById('topReactions').innerHTML='';document.getElementById('pubTbody').innerHTML='';return}
+  var dr=getAnalyticsDateRange();
+  var data=allArticles.filter(function(a){
+    if(!a._enriched&&a.authors[0]==='⏳ Loading...')return false;
+    if(a.date){
+      if(dr.from&&a.date<dr.from)return false;
+      if(dr.to&&a.date>dr.to)return false;
+    }
+    return true;
+  });
+  var dateLabel=anaDatePreset==='all'?'(all time)':anaDatePreset==='custom'?'(custom range)':'('+anaDatePreset+')';
+  if(!data.length){document.getElementById('analyticsOverview').innerHTML='<div class="a-card" style="grid-column:1/-1;text-align:center;padding:40px;color:var(--tx3)">No articles in selected date range '+dateLabel+'. Try a different range or fetch more pages.</div>';document.getElementById('authorTbody').innerHTML='';document.getElementById('topComments').innerHTML='';document.getElementById('topReactions').innerHTML='';document.getElementById('pubTbody').innerHTML='';return}
 
   // Build author stats
   var authors={};
