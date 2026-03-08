@@ -290,63 +290,105 @@ function tickTimer(){
 function stopTimer(){clearInterval(timerInt);var totalElapsed=Date.now()-timerStartMs;document.getElementById('tvElapsed').textContent=formatMs(totalElapsed);document.getElementById('tvRemain').textContent='Done!';if(enrichTotal>0)document.getElementById('tvDone').textContent=enrichDone+' / '+enrichTotal;else document.getElementById('tvDone').textContent='Complete'}
 function formatMs(ms){var s=Math.floor(ms/1000);var m=Math.floor(s/60);var ss=s%60;return(m<10?'0':'')+m+':'+(ss<10?'0':'')+ss}
 
-// ===== 20 PARALLEL =====
-var PARALLEL=20;
+// ===== 30 PARALLEL, CACHED PROXY =====
+var PARALLEL=30;
+var cachedProxy=null; // once a proxy works, reuse it
 
-// ===== MAIN FETCH =====
+// ===== FAST FETCH WITH PROXY CACHING =====
+async function fetchUrl(url){
+  // If we have a cached working proxy, try it first (skip others)
+  if(cachedProxy){
+    try{var r=await fetch(cachedProxy(url),{signal:AbortSignal.timeout(8000)});if(r.ok)return await r.text()}catch(e){}
+    cachedProxy=null; // cache failed, fall through to try all
+  }
+  var keys=cfg.proxy==='auto'?['allorigins','corsproxy','codetabs']:[cfg.proxy];
+  for(var ki=0;ki<keys.length;ki++){var fn=PROXIES[keys[ki]];if(!fn)continue;
+    try{var r2=await fetch(fn(url),{signal:AbortSignal.timeout(8000)});if(r2.ok){cachedProxy=fn;return await r2.text()}}catch(e){}}
+  return null;
+}
+
+// ===== MAIN FETCH (FULLY PARALLEL) =====
 async function startFetch(){
   if(fetching)return;
   var sel=[];document.querySelectorAll('.pub-check:checked').forEach(function(cb){sel.push(cb.dataset.key)});
   if(!sel.length)return toast('Select a publisher','err');
-  fetching=true;var btn=document.getElementById('fetchBtn');btn.disabled=true;btn.textContent='⏳ Fetching...';
+  fetching=true;cachedProxy=null;
+  var btn=document.getElementById('fetchBtn');btn.disabled=true;btn.textContent='⏳ Fetching...';
   document.getElementById('progressBar').style.display='block';
   startFullTimer();
   var maxP=parseInt(document.getElementById('maxPages').value)||2;
   var fetchUntil=document.getElementById('fetchUntilDate').value;
   var untilDate=fetchUntil?new Date(fetchUntil):null;
   var useUntilDate=!!untilDate;
-  if(useUntilDate)maxP=999; // no page limit when using date mode
+  if(useUntilDate)maxP=999;
   var totalAdded=0,enrichQueue=[];
 
-  // PHASE 1: Fetch listing pages
-  for(var pi=0;pi<sel.length;pi++){
-    var pk=sel[pi];
-    var baseUrl=cfg.urls[pk]||DEF_URLS[pk];if(!baseUrl)continue;
-    var slug=getPubSlug(baseUrl);
-    var page=1,hasMore=true,reachedDate=false;
-    while(hasMore&&page<=maxP&&!reachedDate){
-      setStatus('Phase 1: Scanning '+PUBS[pk].s+' page '+page+(useUntilDate?' (until '+fetchUntil+')':'')+'...');
-      document.getElementById('tvDone').textContent='Scanning pages...';
-      var pageUrl=baseUrl+(baseUrl.indexOf('?')>=0?'&':'?')+'page='+page;
-      var html=await fetchUrl(pageUrl);
-      if(!html){toast(PUBS[pk].s+': Failed page '+page,'err');hasMore=false;break}
-      var r=extractListing(html,pk,slug);
-      if(r.added>0){
-        totalAdded+=r.added;enrichQueue=enrichQueue.concat(r.toEnrich);
-        updateAuthors();updateDateBounds();applyFilters();
-        // Check if oldest article on this page is before our target date
-        if(useUntilDate&&r.oldestDate&&r.oldestDate<untilDate){
-          reachedDate=true;setStatus(PUBS[pk].s+': Reached target date at page '+page);
+  // PHASE 1: PARALLEL listing scan
+  if(!useUntilDate){
+    // Fixed page mode: fetch ALL pages from ALL publishers simultaneously
+    var allPageJobs=[];
+    for(var pi=0;pi<sel.length;pi++){
+      var pk=sel[pi];
+      var baseUrl=cfg.urls[pk]||DEF_URLS[pk];if(!baseUrl)continue;
+      for(var pg=1;pg<=maxP;pg++){
+        allPageJobs.push({pk:pk,page:pg,url:baseUrl+(baseUrl.indexOf('?')>=0?'&':'?')+'page='+pg,slug:getPubSlug(baseUrl)});
+      }
+    }
+    setStatus('Phase 1: Fetching '+allPageJobs.length+' pages in parallel...');
+    document.getElementById('tvDone').textContent=allPageJobs.length+' pages';
+    // Fire all page requests in parallel (batches of 10)
+    for(var bi=0;bi<allPageJobs.length;bi+=10){
+      var batch=allPageJobs.slice(bi,bi+10);
+      var results=await Promise.allSettled(batch.map(function(job){
+        return fetchUrl(job.url).then(function(html){return{html:html,job:job}});
+      }));
+      results.forEach(function(res){
+        if(res.status==='fulfilled'&&res.value.html){
+          var r=extractListing(res.value.html,res.value.job.pk,res.value.job.slug);
+          if(r.added>0){totalAdded+=r.added;enrichQueue=enrichQueue.concat(r.toEnrich)}
         }
-        page++;await sleep(200);
-      } else{hasMore=false}
+      });
+      setProgress(Math.min(30,(bi+batch.length)/allPageJobs.length*30));
+    }
+    updateAuthors();updateDateBounds();applyFilters();
+  } else {
+    // Date mode: sequential per publisher (must check dates to know when to stop)
+    for(var pi2=0;pi2<sel.length;pi2++){
+      var pk2=sel[pi2];
+      var baseUrl2=cfg.urls[pk2]||DEF_URLS[pk2];if(!baseUrl2)continue;
+      var slug2=getPubSlug(baseUrl2);
+      var page2=1,hasMore=true,reachedDate=false;
+      while(hasMore&&page2<=maxP&&!reachedDate){
+        setStatus('Phase 1: '+PUBS[pk2].s+' page '+page2+' (until '+fetchUntil+')...');
+        document.getElementById('tvDone').textContent='Scanning...';
+        var pageUrl2=baseUrl2+(baseUrl2.indexOf('?')>=0?'&':'?')+'page='+page2;
+        var html2=await fetchUrl(pageUrl2);
+        if(!html2){toast(PUBS[pk2].s+': Failed page '+page2,'err');hasMore=false;break}
+        var r2=extractListing(html2,pk2,slug2);
+        if(r2.added>0){
+          totalAdded+=r2.added;enrichQueue=enrichQueue.concat(r2.toEnrich);
+          updateAuthors();updateDateBounds();applyFilters();
+          if(r2.oldestDate&&r2.oldestDate<untilDate){reachedDate=true}
+          page2++;
+        }else{hasMore=false}
+      }
     }
   }
 
-  // PHASE 2: Parallel enrich
+  // PHASE 2: Parallel enrich (30 at a time, no delays)
   if(enrichQueue.length>0){
     setTimerTotal(enrichQueue.length);
-    setStatus('Phase 2: Enriching '+enrichQueue.length+' articles (20 parallel)...');
+    setStatus('Phase 2: Enriching '+enrichQueue.length+' articles (30 parallel)...');
     for(var i=0;i<enrichQueue.length;i+=PARALLEL){
-      var batch=enrichQueue.slice(i,i+PARALLEL);
-      await Promise.allSettled(batch.map(function(art){
+      var ebatch=enrichQueue.slice(i,i+PARALLEL);
+      await Promise.allSettled(ebatch.map(function(art){
         if(!art._enrichUrl)return Promise.resolve();
         return fetchUrl(art._enrichUrl).then(function(html){
           if(html)enrichArticle(art,html);
           enrichDone++;
         });
       }));
-      setProgress((enrichDone/enrichTotal)*100);
+      setProgress(30+((enrichDone/enrichQueue.length)*70));
       updateAuthors();applyFilters();
     }
     stopTimer();
@@ -421,12 +463,7 @@ function enrichArticle(art,html){
   art._enriched=true;
 }
 
-async function fetchUrl(url){
-  var keys=cfg.proxy==='auto'?['allorigins','corsproxy','codetabs']:[cfg.proxy];
-  for(var ki=0;ki<keys.length;ki++){var fn=PROXIES[keys[ki]];if(!fn)continue;
-    try{var r=await fetch(fn(url),{signal:AbortSignal.timeout(15000)});if(r.ok)return await r.text()}catch(e){}}
-  return null;
-}
+// fetchUrl is defined above startFetch with proxy caching
 
 // ===== FILTERS =====
 function applyFilters(){
