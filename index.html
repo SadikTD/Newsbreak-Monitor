@@ -100,9 +100,9 @@ tr:last-child td{border:none}tr:hover td{background:var(--accL)}
     <div class="status-text" id="statusText"></div>
     <div class="timer-box" id="timerBox">
       <div class="timer-grid">
-        <div class="timer-cell"><div class="timer-val" id="tvElapsed">00:00</div><div class="timer-lbl">Elapsed</div></div>
-        <div class="timer-cell"><div class="timer-val" id="tvRemain">--:--</div><div class="timer-lbl">Remaining</div></div>
-        <div class="timer-cell"><div class="timer-val" id="tvDone">0 / 0</div><div class="timer-lbl">Progress</div></div>
+        <div class="timer-cell"><div class="timer-val" id="tvElapsed">00:00</div><div class="timer-lbl">Total Elapsed</div></div>
+        <div class="timer-cell"><div class="timer-val" id="tvRemain">--:--</div><div class="timer-lbl">Est. Remaining</div></div>
+        <div class="timer-cell"><div class="timer-val" id="tvDone">0 / 0</div><div class="timer-lbl">Enrichment</div></div>
         <div class="timer-cell"><div class="timer-val" id="tvSpeed">--</div><div class="timer-lbl">Articles/sec</div></div>
       </div>
     </div>
@@ -178,24 +178,25 @@ function metricColor(n){
 }
 
 // ===== TIMER =====
-let timerStartMs=0,timerInt=null,enrichDone=0,enrichTotal=0;
+let timerStartMs=0,enrichStartMs=0,timerInt=null,enrichDone=0,enrichTotal=0;
 function showTimer(){document.getElementById('timerBox').style.display='block'}
 function hideTimer(){document.getElementById('timerBox').style.display='none'}
-function startFullTimer(){enrichDone=0;enrichTotal=0;timerStartMs=Date.now();document.getElementById('tvDone').textContent='Starting...';document.getElementById('tvRemain').textContent='--:--';document.getElementById('tvSpeed').textContent='--';showTimer();clearInterval(timerInt);timerInt=setInterval(tickTimer,500)}
-function setTimerTotal(total){enrichTotal=total;enrichDone=0;document.getElementById('tvDone').textContent='0 / '+total;document.getElementById('tvRemain').textContent='calculating...';timerStartMs=Date.now()}
+function startFullTimer(){enrichDone=0;enrichTotal=0;timerStartMs=Date.now();enrichStartMs=Date.now();document.getElementById('tvDone').textContent='Scanning pages...';document.getElementById('tvRemain').textContent='--:--';document.getElementById('tvSpeed').textContent='--';document.getElementById('tvElapsed').textContent='00:00';showTimer();clearInterval(timerInt);timerInt=setInterval(tickTimer,500)}
+function setTimerTotal(total){enrichTotal=total;enrichDone=0;enrichStartMs=Date.now();document.getElementById('tvDone').textContent='0 / '+total;document.getElementById('tvRemain').textContent='calculating...'}
 function tickTimer(){
-  var elapsed=Date.now()-timerStartMs;
-  document.getElementById('tvElapsed').textContent=formatMs(elapsed);
-  if(enrichDone>0){
-    var rate=elapsed/enrichDone;
+  var totalElapsed=Date.now()-timerStartMs;
+  document.getElementById('tvElapsed').textContent=formatMs(totalElapsed);
+  if(enrichDone>0&&enrichTotal>0){
+    var enrichElapsed=Date.now()-enrichStartMs;
+    var rate=enrichElapsed/enrichDone;
     var remain=Math.max(0,(enrichTotal-enrichDone)*rate);
     document.getElementById('tvRemain').textContent=formatMs(remain);
-    var speed=enrichDone/(elapsed/1000);
+    var speed=enrichDone/(enrichElapsed/1000);
     document.getElementById('tvSpeed').textContent=speed.toFixed(1);
   }
-  document.getElementById('tvDone').textContent=enrichDone+' / '+enrichTotal;
+  document.getElementById('tvDone').textContent=enrichTotal>0?(enrichDone+' / '+enrichTotal):'Scanning pages...';
 }
-function stopTimer(){clearInterval(timerInt);tickTimer();document.getElementById('tvRemain').textContent='Done!'}
+function stopTimer(){clearInterval(timerInt);var totalElapsed=Date.now()-timerStartMs;document.getElementById('tvElapsed').textContent=formatMs(totalElapsed);document.getElementById('tvRemain').textContent='Done!';if(enrichTotal>0)document.getElementById('tvDone').textContent=enrichDone+' / '+enrichTotal;else document.getElementById('tvDone').textContent='Complete'}
 function formatMs(ms){var s=Math.floor(ms/1000);var m=Math.floor(s/60);var ss=s%60;return(m<10?'0':'')+m+':'+(ss<10?'0':'')+ss}
 
 // ===== 20 PARALLEL =====
@@ -290,6 +291,7 @@ function extractListing(html,pubKey,slug){
       dateStr:item.date_str||'',
       votes:hasVotes?item.vote:null,up:item.up||0,down:item.down||0,
       comments:item.comment_count||0,likes:item.like||0,
+      totalReactions:Object.values(emojis).reduce(function(s,v){return s+v},0),
       shares:hasShares?item.share_count:null,
       emojis:emojis,publisher:pubKey,publisherName:PUBS[pubKey]?PUBS[pubKey].n:pubKey,
       url:nbUrl||('https://www.newsbreak.com/news/'+id),
@@ -310,7 +312,7 @@ function enrichArticle(art,html){
   if(!json||!json.props||!json.props.pageProps)return;
   var pp=json.props.pageProps;
   if(pp.authors&&pp.authors.length>0&&pp.authors[0]){art.authors=pp.authors;art.author=pp.authors.join(', ')}
-  if(typeof pp.likeCount==='number')art.likes=pp.likeCount;
+  if(typeof pp.likeCount==='number'){art.likes=pp.likeCount;if(!art.totalReactions||art.totalReactions===0)art.totalReactions=pp.likeCount}
   if(typeof pp.commentCount==='number')art.comments=pp.commentCount;
   art._enriched=true;
 }
@@ -330,7 +332,7 @@ function applyFilters(){
     if(af&&a.authors.indexOf(af)<0)return false;if(pf&&a.publisher!==pf)return false;
     if(myActive&&!my.some(function(n){return a.author.toLowerCase().indexOf(n)>=0}))return false;
     if(a.date){if(df&&a.date<new Date(df))return false;if(dt&&a.date>new Date(dt+'T23:59:59'))return false}return true});
-  filtered.sort(function(a,b){var va,vb;switch(sortS.f){case'title':va=a.title;vb=b.title;break;case'author':va=a.author;vb=b.author;break;case'votes':va=a.votes||0;vb=b.votes||0;break;case'comments':va=a.comments;vb=b.comments;break;case'likes':va=a.likes;vb=b.likes;break;case'shares':va=a.shares||0;vb=b.shares||0;break;case'date':va=a.date||new Date(0);vb=b.date||new Date(0);break;case'publisher':va=a.publisherName;vb=b.publisherName;break;default:va=a.date||new Date(0);vb=b.date||new Date(0)}
+  filtered.sort(function(a,b){var va,vb;switch(sortS.f){case'title':va=a.title;vb=b.title;break;case'author':va=a.author;vb=b.author;break;case'votes':va=a.votes||0;vb=b.votes||0;break;case'comments':va=a.comments;vb=b.comments;break;case'likes':va=a.totalReactions||0;vb=b.totalReactions||0;break;case'shares':va=a.shares||0;vb=b.shares||0;break;case'date':va=a.date||new Date(0);vb=b.date||new Date(0);break;case'publisher':va=a.publisherName;vb=b.publisherName;break;default:va=a.date||new Date(0);vb=b.date||new Date(0)}
     var c=typeof va==='string'?va.localeCompare(vb):va-vb;return sortS.d==='desc'?-c:c});
   render();updateStats()}
 function doSort(f){if(sortS.f===f)sortS.d=sortS.d==='desc'?'asc':'desc';else{sortS.f=f;sortS.d='desc'}document.querySelectorAll('th').forEach(function(t){t.classList.remove('sorted')});var el=document.getElementById('th-'+f);if(el)el.classList.add('sorted');applyFilters()}
@@ -355,8 +357,8 @@ function render(){
     var sharesH=a.shares!==null?'<span class="m" style="color:#8e44ad">'+fN(a.shares)+'</span>':'<span class="na" title="'+naTitle+'">n/a</span>';
     // Color-graded comments & reactions
     var commColor=metricColor(a.comments);
-    var reactColor=metricColor(a.likes);
-    return'<tr><td class="t-title"><a href="'+esc(a.url)+'" target="_blank">'+esc(a.title)+'</a><div class="t-pub"><span class="pd '+pc+'"></span>'+esc(a.publisherName)+'</div></td><td><span class="'+bc+'">'+esc(a.author)+'</span></td><td>'+votesH+'</td><td><span class="m" style="color:'+commColor+';font-weight:700">'+fN(a.comments)+'</span></td><td><span class="m" style="color:'+reactColor+';font-weight:700">'+fN(a.likes)+'</span>'+ej+'</td><td>'+sharesH+'</td><td class="dt">'+d+'</td><td><span class="pd '+pc+'" style="margin-right:4px"></span>'+(PUBS[a.publisher]?PUBS[a.publisher].s:a.publisher)+'</td></tr>'}).join('')}
+    var reactColor=metricColor(a.totalReactions||0);
+    return'<tr><td class="t-title"><a href="'+esc(a.url)+'" target="_blank">'+esc(a.title)+'</a><div class="t-pub"><span class="pd '+pc+'"></span>'+esc(a.publisherName)+'</div></td><td><span class="'+bc+'">'+esc(a.author)+'</span></td><td>'+votesH+'</td><td><span class="m" style="color:'+commColor+';font-weight:700">'+fN(a.comments)+'</span></td><td><span class="m" style="color:'+reactColor+';font-weight:700">'+fN(a.totalReactions||0)+'</span>'+ej+'</td><td>'+sharesH+'</td><td class="dt">'+d+'</td><td><span class="pd '+pc+'" style="margin-right:4px"></span>'+(PUBS[a.publisher]?PUBS[a.publisher].s:a.publisher)+'</td></tr>'}).join('')}
 function updateStats(){var my=cfg.authors.map(function(n){return n.toLowerCase()});var mine=filtered.filter(function(a){return my.some(function(n){return a.author.toLowerCase().indexOf(n)>=0})});
   document.getElementById('sTotal').textContent=filtered.length;document.getElementById('sMine').textContent=mine.length;
   document.getElementById('sVotes').textContent=fN(filtered.reduce(function(s,a){return s+(a.votes||0)},0));document.getElementById('sComments').textContent=fN(filtered.reduce(function(s,a){return s+a.comments},0));
@@ -366,7 +368,7 @@ function updateAuthors(){var sel=document.getElementById('authorFilter'),cur=sel
 function openSettings(){document.getElementById('setAuthors').value=cfg.authors.join('\n');document.getElementById('setUrlWgtc').value=cfg.urls.wgtc||DEF_URLS.wgtc;document.getElementById('setUrlAotf').value=cfg.urls.aotf||DEF_URLS.aotf;document.getElementById('setUrlCurveball').value=cfg.urls.curveball||DEF_URLS.curveball;document.getElementById('setProxy').value=cfg.proxy;document.getElementById('setTheme').value=cfg.theme;document.getElementById('settingsModal').classList.add('show')}
 function closeSettings(){document.getElementById('settingsModal').classList.remove('show')}
 function saveSettings(){cfg.authors=document.getElementById('setAuthors').value.split('\n').map(function(s){return s.trim()}).filter(function(s){return s});cfg.urls.wgtc=document.getElementById('setUrlWgtc').value.trim();cfg.urls.aotf=document.getElementById('setUrlAotf').value.trim();cfg.urls.curveball=document.getElementById('setUrlCurveball').value.trim();cfg.proxy=document.getElementById('setProxy').value;cfg.theme=document.getElementById('setTheme').value;document.documentElement.setAttribute('data-theme',cfg.theme==='dark'?'dark':'');try{localStorage.setItem('nb_cfg',JSON.stringify(cfg))}catch(e){}closeSettings();toast('Settings saved!','ok');applyFilters()}
-function exportCSV(){if(!filtered.length)return toast('Nothing to export','err');var h=['Title','Author','Votes','Up','Down','Comments','Likes','Shares','Date','Publisher','Category','URL'];var rows=filtered.map(function(a){return['"'+a.title.replace(/"/g,'""')+'"','"'+a.author+'"',a.votes!==null?a.votes:'n/a',a.up,a.down,a.comments,a.likes,a.shares!==null?a.shares:'n/a',a.date?a.date.toISOString().split('T')[0]:'',a.publisherName,a.category,a.url]});var csv=[h.join(',')].concat(rows.map(function(r){return r.join(',')})).join('\n');var blob=new Blob([csv],{type:'text/csv'}),u=URL.createObjectURL(blob);Object.assign(document.createElement('a'),{href:u,download:'newsbreak-'+new Date().toISOString().split('T')[0]+'.csv'}).click();URL.revokeObjectURL(u);toast('Exported '+filtered.length+' articles','ok')}
+function exportCSV(){if(!filtered.length)return toast('Nothing to export','err');var h=['Title','Author','Votes','Up','Down','Comments','Total Reactions','Shares','Date','Publisher','Category','URL'];var rows=filtered.map(function(a){return['"'+a.title.replace(/"/g,'""')+'"','"'+a.author+'"',a.votes!==null?a.votes:'n/a',a.up,a.down,a.comments,a.totalReactions||0,a.shares!==null?a.shares:'n/a',a.date?a.date.toISOString().split('T')[0]:'',a.publisherName,a.category,a.url]});var csv=[h.join(',')].concat(rows.map(function(r){return r.join(',')})).join('\n');var blob=new Blob([csv],{type:'text/csv'}),u=URL.createObjectURL(blob);Object.assign(document.createElement('a'),{href:u,download:'newsbreak-'+new Date().toISOString().split('T')[0]+'.csv'}).click();URL.revokeObjectURL(u);toast('Exported '+filtered.length+' articles','ok')}
 function clearAll(){allArticles=[];filtered=[];document.getElementById('totalLoaded').textContent='';setStatus('');hideTimer();updateAuthors();applyFilters();toast('Cleared','info')}
 function fN(n){if(n===null||n===undefined)return'0';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toLocaleString()}
 function fD(d){if(!(d instanceof Date)||isNaN(d))return'—';var now=new Date(),hrs=Math.floor((now-d)/36e5);if(hrs<1)return'Just now';if(hrs<24)return hrs+'h ago';if(hrs<48)return'Yesterday';return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:d.getFullYear()!==now.getFullYear()?'numeric':undefined})}
