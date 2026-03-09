@@ -93,7 +93,7 @@ Comments and reactions use a color scale for quick visual scanning:
 
 ## 📄 License
 
-MIT License — free to use, modify, and distribute.
+Proprietary — All Rights Reserved. See LICENSE file for details. Unauthorized copying, modification, or distribution is strictly prohibited.
 
 ## 👤 Author
 
