@@ -97,7 +97,7 @@ Proprietary — All Rights Reserved. See LICENSE file for details. Unauthorized 
 
 ## 👤 Author
 
-**Sadik Hossain** — Digital Editor & Content Creator at WGTC / Gamurs Network
+**Sadik Hossain** — Writer at WGTC / Gamurs Network
 
 ---
 
